@@ -177,19 +177,25 @@ const cmd = {
   },
   open() { fileMode = 'open'; $('fileInput').click(); },
   place() { fileMode = 'place'; $('fileInput').click(); },
-  save: () => ops.saveProject(),
-  async exportAs() {
+  // Uložení se vždy nejdřív zeptá na formát; poslední volba se pamatuje.
+  async save() {
+    let last = 'png';
+    try { last = localStorage.getItem('saveFormat') || 'png'; } catch { /* úložiště není dostupné */ }
     const v = await dialog({
-      title: 'Exportovat jako',
+      title: 'Uložit jako',
       fields: [
-        { id: 'fmt', label: 'Formát', type: 'select', value: 'png', options: [['png', 'PNG (zachová průhlednost)'], ['jpeg', 'JPEG'], ['webp', 'WebP']] },
-        { id: 'q', label: 'Kvalita (JPEG, WebP)', type: 'range', value: 90, min: 10, max: 100 },
+        {
+          id: 'fmt', label: 'Formát', type: 'select', value: last,
+          options: [['png', 'PNG (zachová průhlednost)'], ['jpeg', 'JPG'], ['pdf', 'PDF'], ['webp', 'WebP'], ['project', 'Projekt s vrstvami (.asphoto)']],
+        },
+        { id: 'q', label: 'Kvalita (JPG, PDF, WebP)', type: 'range', value: 90, min: 10, max: 100 },
       ],
-      ok: 'Exportovat',
+      ok: 'Uložit',
     });
-    if (v) ops.exportImage(v.fmt, v.q / 100);
+    if (!v) return;
+    try { localStorage.setItem('saveFormat', v.fmt); } catch { /* úložiště není dostupné */ }
+    if (v.fmt === 'project') ops.saveProject(); else ops.exportImage(v.fmt, v.q / 100);
   },
-  exportPng: () => ops.exportImage('png', 1),
   close() {
     const d = S.doc;
     if (d && (!d.dirty || confirm(`Zavřít „${d.name}“ bez uložení?`))) closeDoc(d);
@@ -258,7 +264,7 @@ const cmd = {
       [`${m}+T (v okně prohlížeče Alt+T)`, 'volná transformace'], ['Enter / Esc', 'potvrdit / zrušit ořez a transformaci'],
       [`${m}+A / ${m}+D`, 'vybrat vše / zrušit výběr'], ['Delete', 'vymazat výběr'], ['Alt+Backspace', 'vyplnit barvou popředí'],
       ['X / D', 'prohodit / výchozí barvy'], ['[ / ]', 'velikost štětce'], ['Alt + klik štětcem', 'nabrat barvu'],
-      [`${m}+J / ${m}+E`, 'duplikovat vrstvu / sloučit dolů'], [`${m}+S / ${m}+Shift+S`, 'uložit projekt / exportovat'],
+      [`${m}+J / ${m}+E`, 'duplikovat vrstvu / sloučit dolů'], [`${m}+S`, 'uložit (zeptá se na formát: PNG, JPG, PDF…)'],
     ];
     dialog({ title: 'Klávesové zkratky', cancel: false, ok: 'Zavřít', body: '<table class="keys">' + rows.map(([k, t]) => `<tr><td>${k}</td><td>${t}</td></tr>`).join('') + '</table>' });
   },
@@ -267,7 +273,7 @@ const cmd = {
 const MENUS = [
   ['Soubor', [
     ['Nový…', 'Alt+N', cmd.newDoc, true], ['Otevřít…', 'Ctrl+O', cmd.open, true], ['Vložit obrázek jako vrstvu…', '', cmd.place], '-',
-    ['Uložit projekt…', 'Ctrl+S', cmd.save], ['Exportovat jako…', 'Ctrl+Shift+S', cmd.exportAs], ['Rychlý export do PNG', '', cmd.exportPng], '-',
+    ['Uložit jako…', 'Ctrl+S', cmd.save], '-',
     ['Zavřít', 'Alt+W', cmd.close],
   ]],
   ['Úpravy', [
@@ -594,7 +600,7 @@ function onKey(e) {
     if (k === 'o') return hit(cmd.open);
     if (k === 'z') return needDoc(e.shiftKey ? redo : undo);
     if (k === 'y') return needDoc(redo);
-    if (k === 's') return needDoc(e.shiftKey ? cmd.exportAs : cmd.save);
+    if (k === 's') return needDoc(cmd.save);
     if (k === 'c' && !e.altKey) return needDoc(() => ops.copy(false));
     if (k === 'x') return needDoc(() => ops.copy(true));
     if (k === 'v') return; // vložení obslouží událost paste

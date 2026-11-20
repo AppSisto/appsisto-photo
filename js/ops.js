@@ -461,14 +461,48 @@ const FORMATS = {
   png: { mime: 'image/png', ext: '.png', label: 'Obrázek PNG' },
   jpeg: { mime: 'image/jpeg', ext: '.jpg', label: 'Obrázek JPEG' },
   webp: { mime: 'image/webp', ext: '.webp', label: 'Obrázek WebP' },
+  pdf: { mime: 'application/pdf', ext: '.pdf', label: 'Dokument PDF' },
 };
+
+// Jednostránkové PDF s obrázkem přes celou stránku (JPEG uvnitř, 96 px = 1 palec).
+async function pdfBlob(canvas, quality) {
+  const jpgBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', quality));
+  if (!jpgBlob) return null;
+  const jpg = new Uint8Array(await jpgBlob.arrayBuffer());
+  const w = canvas.width, h = canvas.height, pw = +(w * 0.75).toFixed(2), ph = +(h * 0.75).toFixed(2);
+  const enc = new TextEncoder(), parts = [], offs = [];
+  let len = 0;
+  const push = x => { const b = typeof x === 'string' ? enc.encode(x) : x; parts.push(b); len += b.length; };
+  const obj = (n, ...body) => { offs[n] = len; push(`${n} 0 obj\n`); body.forEach(push); push('\nendobj\n'); };
+  const content = `q ${pw} 0 0 ${ph} 0 0 cm /Im0 Do Q`;
+  push('%PDF-1.4\n');
+  obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+  obj(2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+  obj(3, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pw} ${ph}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`);
+  obj(4, `<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n`, jpg, '\nendstream');
+  obj(5, `<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+  const xref = len;
+  push('xref\n0 6\n0000000000 65535 f \n');
+  for (let n = 1; n <= 5; n++) push(`${String(offs[n]).padStart(10, '0')} 00000 n \n`);
+  push(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  return new Blob(parts, { type: 'application/pdf' });
+}
+
+export async function imageBlob(fmt, quality) {
+  const c = flatten(S.doc, fmt === 'jpeg' || fmt === 'pdf' ? '#ffffff' : null);
+  if (fmt === 'pdf') return pdfBlob(c, quality);
+  return new Promise(r => c.toBlob(r, FORMATS[fmt].mime, quality));
+}
 
 export async function exportImage(fmt, quality) {
   const d = S.doc, f = FORMATS[fmt];
-  const c = flatten(d, fmt === 'jpeg' ? '#ffffff' : null);
-  const blob = await new Promise(r => c.toBlob(r, f.mime, quality));
-  if (!blob) return toast('Export se nezdařil');
-  if (await saveBlob(blob, d.name + f.ext, f.label, f.mime, f.ext)) toast('Exportováno');
+  const blob = await imageBlob(fmt, quality);
+  if (!blob) return toast('Uložení se nezdařilo');
+  if (await saveBlob(blob, d.name + f.ext, f.label, f.mime, f.ext)) {
+    d.dirty = false;
+    emitAll();
+    toast(`Uloženo jako ${f.ext.slice(1).toUpperCase()}`);
+  }
 }
 
 export async function saveProject() {
