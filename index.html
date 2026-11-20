@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AppSisto Photo</title>
+  <meta name="description" content="Jednoduchý editor obrázků: ořez, vrstvy, přechody, průhlednost, text.">
+  <meta name="theme-color" content="#2b2b2b">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <div id="menubar"></div>
+    <div id="optionsbar"></div>
+    <div id="main">
+      <div id="toolbar"></div>
+      <div id="workspace">
+        <div id="tabs"></div>
+        <div id="stage">
+          <canvas id="view"></canvas>
+          <div id="welcome">
+            <div class="welcome-box">
+              <h1>AppSisto Photo</h1>
+              <p>Ořez, vrstvy, přechody, průhlednost a text. Vše běží jen ve vašem prohlížeči, obrázky se nikam neodesílají.</p>
+              <div class="welcome-btns">
+                <button id="welcomeOpen" class="primary">Otevřít obrázek</button>
+                <button id="welcomeNew">Nový dokument</button>
+              </div>
+              <p class="dim">Obrázek sem můžete také přetáhnout nebo vložit ze schránky.</p>
+            </div>
+          </div>
+        </div>
+        <div id="statusbar"></div>
+      </div>
+      <div id="panels">
+        <section class="panel">
+          <h4>Barva</h4>
+          <div class="panel-body">
+            <div id="swatches"></div>
+            <label class="hex">Popředí <input id="hexInput" type="text" maxlength="7" spellcheck="false"></label>
+          </div>
+        </section>
+        <section class="panel" id="historyPanel">
+          <h4>Historie</h4>
+          <div id="historyList" class="panel-body scroll"></div>
+        </section>
+        <section class="panel grow">
+          <h4>Vrstvy</h4>
+          <div class="layer-head">
+            <select id="layerBlend" title="Režim prolnutí"></select>
+            <label>Krytí <input id="layerOpacity" type="range" min="0" max="100" value="100"><input id="layerOpacityNum" type="number" min="0" max="100" value="100">%</label>
+          </div>
+          <div id="layerList" class="panel-body scroll"></div>
+          <div id="layerBtns"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+  <input type="file" id="fileInput" hidden multiple accept="image/*,.asphoto">
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
